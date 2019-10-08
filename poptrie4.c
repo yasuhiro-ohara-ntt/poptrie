@@ -180,7 +180,7 @@ poptrie_rib_lookup(struct poptrie *poptrie, u32 addr)
 }
 
 /*
- * Updated the marked subtree
+ * Update the marked subtree
  */
 static int
 _update_subtree(struct poptrie *poptrie, struct radix_node *node, u32 prefix,
@@ -200,8 +200,8 @@ _update_subtree(struct poptrie *poptrie, struct radix_node *node, u32 prefix,
     stack[0].width = -1;
 
     if ( depth < POPTRIE_S ) {
-         /* The update is performed from more than one entries in the direct
-           pointing array. */
+        /* The update needs to be performed on more than one entry
+           in the direct pointing array. */
 
         /* Copy the direct pointing array from the current one */
         memcpy(poptrie->altdir, poptrie->dir, sizeof(u32) << POPTRIE_S);
@@ -214,29 +214,38 @@ _update_subtree(struct poptrie *poptrie, struct radix_node *node, u32 prefix,
         poptrie->dir = poptrie->altdir;
         poptrie->altdir = tmpdir;
 
+        /* The new is in "altdir". The previous is in "dir". */
+
         /* Get the starting index at the direct pointing corresponding to the
            depth */
         idx = INDEX(prefix, 0, POPTRIE_S)
             >> (POPTRIE_S - depth)
             << (POPTRIE_S - depth);
+
         /* Clean the old trie */
         for ( i = 0; i < (1 << (POPTRIE_S - depth)); i++ ) {
+            /* For each corresponding direct pointing entries */
             if ( poptrie->dir[idx + i] != poptrie->altdir[idx + i] ) {
-                /* This entry is updated then clean up the subtree */
+                /* This entry has been updated so clean up the subtree */
                 if ( (poptrie->dir[idx + i] & ((u32)1 << 31))
                      && !(poptrie->altdir[idx + i] & ((u32)1 << 31)) ) {
+                    /* The previous is an internal node,
+                       and the new is a leaf. */
                     /* Updated from internal node to leaf */
                     _update_clean_subtree(poptrie, poptrie->altdir[idx + i]);
                     buddy_free2(poptrie->cnodes, poptrie->altdir[idx + i]);
                 } else if ( !(poptrie->altdir[idx + i] & ((u32)1 << 31)) ) {
+                    /* Else (the previous is a leaf),
+                       and if the new is a leaf. */
                     /* Updated from internal node to internal node */
                     _update_clean_root(poptrie, poptrie->dir[idx + i],
                                        poptrie->altdir[idx + i]);
                 }
+                /* What about (node/leaf)-to-node type changes? */
             }
         }
     } else if ( depth == POPTRIE_S ) {
-        /* The update is performed from an entry in the direct pointing
+        /* The update is performed on just one entry in the direct pointing
            array. */
         ret = _update_dp1(poptrie, poptrie->radix, 0, prefix, depth, 0);
     } else {

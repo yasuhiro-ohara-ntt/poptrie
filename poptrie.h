@@ -17,9 +17,9 @@ typedef uint64_t u64;
 /* The bit length used for direct pointing.  The most significant POPTRIE_S bits
    of keys will be tested at the first stage of the trie search in O(1). */
 #define POPTRIE_S               18
-/* The initial size of forwarding information base (FIB).  In the current
-   version of this software, new entries exceeding this size will result in an
-   error.  This parameter must be less than 65535. */
+/* The initial size of the number of leaves (nexthop entries).
+   In this implementation, new entries exceeding this size will result in an
+   error.  This parameter must be less than 65535 (the size of u16). */
 #define POPTRIE_INIT_FIB_SIZE   4096
 
 
