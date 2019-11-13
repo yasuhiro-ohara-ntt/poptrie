@@ -277,7 +277,7 @@ buddy_free2(struct buddy *bs, int a)
     }
 
 
-    _merge(bs, a, sz);
+    //_merge(bs, a, sz);
 }
 
 /*
