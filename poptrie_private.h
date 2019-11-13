@@ -64,7 +64,8 @@ static int
 _update_part_dp(struct poptrie *, struct radix_node *, int, u32 *, int);
 static struct radix_node * _next_block(struct radix_node *, int, int, int);
 static void
-_parse_triangle(struct radix_node *, u64 *, struct radix_node *, int, int);
+_prepare_node_vector (struct radix_node *,
+                      u64 *, struct radix_node *, int, int);
 static void _update_clean_node(struct poptrie *, poptrie_node_t *, int);
 static void _update_clean_inode(struct poptrie *, int, int);
 static void _update_clean_root(struct poptrie *, int, int);
@@ -169,14 +170,14 @@ poptrie_route_del_propagate(struct radix_node *node, struct radix_node *oext,
  * Update an internal node
  */
 static int
-_update_inode(struct poptrie *poptrie, struct radix_node *node, int inode,
-              poptrie_node_t *n, poptrie_leaf_t *leaf)
+_update_inode (struct poptrie *poptrie, struct radix_node *node, int inode,
+               poptrie_node_t *n, poptrie_leaf_t *leafp)
 {
     int i;
-    u64 vector;
+    u64 vector; /* nodevec */
     u64 leafvec;
-    int nvec;
-    int nlvec;
+    int nvec;   /* #vector (#nodes) */
+    int nlvec;  /* #leaves */
     struct radix_node nodes[1 << 6];
     poptrie_node_t children[1 << 6];
     poptrie_leaf_t leaves[1 << 6];
@@ -184,14 +185,13 @@ _update_inode(struct poptrie *poptrie, struct radix_node *node, int inode,
     int base0;
     int base1;
     int ret;
-    poptrie_leaf_t sleaf;
+    poptrie_leaf_t leaf;
     int p;
-    int ninode;
     int num;
 
     /* Parse triangle */
     VEC_INIT(vector);
-    _parse_triangle(node, &vector, nodes, 0, 0);
+    _prepare_node_vector (node, &vector, nodes, 0, 0);
 
     /* Traverse children first */
     VEC_INIT(leafvec);
@@ -205,18 +205,19 @@ _update_inode(struct poptrie *poptrie, struct radix_node *node, int inode,
                  || (nodes[i].right && nodes[i].right->mark)
                  || inode < 0 ) {
                 /* One or more child is marked */
+                int child_inode = -1;
                 if ( inode >= 0 ) {
                     if ( VEC_BT(poptrie->nodes[inode].vector, i) ) {
                         p = POPCNT_LS(poptrie->nodes[inode].vector, i);
-                        ninode = poptrie->nodes[inode].base1 + (p - 1);
+                        child_inode = poptrie->nodes[inode].base1 + (p - 1);
                     } else {
-                        ninode = -1;
+                        child_inode = -1;
                     }
                 } else {
-                    ninode = -1;
+                    child_inode = -1;
                 }
-                ret = _update_inode_chunk(poptrie, &nodes[i], ninode,
-                                          children + i, &sleaf);
+                ret = _update_inode_chunk(poptrie, &nodes[i], child_inode,
+                                          children + i, &leaf);
                 if ( ret < 0 ) {
                     return -1;
                 }
@@ -224,13 +225,13 @@ _update_inode(struct poptrie *poptrie, struct radix_node *node, int inode,
                     /* The vertical compression is performed then check the
                        horizontal compression */
                     VEC_CLEAR(vector, i);
-                    if ( prev != sleaf ) {
+                    if ( prev != leaf ) {
                         VEC_SET(leafvec, i);
-                        leaves[nlvec] = sleaf;
+                        leaves[nlvec] = leaf;
                         nlvec++;
                     }
-                    prev = sleaf;
-                } else {
+                    prev = leaf;
+                } else { /* ( ret == 0 ) */
                     /* Not compressed */
                     nvec++;
                 }
@@ -247,28 +248,29 @@ _update_inode(struct poptrie *poptrie, struct radix_node *node, int inode,
                     /* The working child is a leaf node */
                     VEC_CLEAR(vector, i);
                     p = POPCNT_LS(poptrie->nodes[inode].leafvec, i);
-                    sleaf
+                    leaf
                         = poptrie->leaves[poptrie->nodes[inode].base0 + p - 1];
-                    if ( prev != sleaf ) {
+                    if ( prev != leaf ) {
                         VEC_SET(leafvec, i);
-                        leaves[nlvec] = sleaf;
+                        leaves[nlvec] = leaf;
                         nlvec++;
                     }
-                    prev = sleaf;
+                    prev = leaf;
                 }
             }
-        } else {
+        } else { /* ! VEC_BT(vector, i) */
             /* Leaf compression */
-            if ( prev != EXT_NH(&nodes[i]) ) {
+            leaf = EXT_NH (&nodes[i]);
+            if ( prev != leaf ) {
                 VEC_SET(leafvec, i);
-                leaves[nlvec] = EXT_NH(&nodes[i]);
+                leaves[nlvec] = leaf;
                 nlvec++;
             }
-            prev = EXT_NH(&nodes[i]);
+            prev = leaf;
         }
     }
 
-    /* Internal nodes */
+    /* Allocate Internal nodes */
     base1 = -1;
     if ( nvec > 0 ) {
         p = nvec;
@@ -277,7 +279,7 @@ _update_inode(struct poptrie *poptrie, struct radix_node *node, int inode,
             return -1;
         }
     }
-    /* Leaves */
+    /* Allocate Leaves */
     base0 = -1;
     if ( nlvec > 0 ) {
         p = nlvec;
@@ -290,7 +292,7 @@ _update_inode(struct poptrie *poptrie, struct radix_node *node, int inode,
         }
     }
 
-    /* Internal nodes */
+    /* Fill in the Internal nodes */
     num = 0;
     for ( i = 0; i < (1 << 6); i++ ) {
         if ( VEC_BT(vector, i) ) {
@@ -299,7 +301,7 @@ _update_inode(struct poptrie *poptrie, struct radix_node *node, int inode,
             num++;
         }
     }
-    /* Leaves */
+    /* Fill in the Leaves */
     for ( i = 0; i < nlvec; i++ ) {
         poptrie->leaves[base0 + i] = leaves[i];
     }
@@ -308,10 +310,10 @@ _update_inode(struct poptrie *poptrie, struct radix_node *node, int inode,
     n->base0 = base0;
     n->base1 = base1;
 
-    if ( 0 == nvec && 1 == nlvec && NULL != leaf ) {
+    if ( 0 == nvec && 1 == nlvec && NULL != leafp ) {
         /* Only one leaf belonging to this internal node, then compress
            this (but can't do this for the top tier when leaf is NULL) */
-        *leaf = leaves[0];
+        *leafp = leaves[0];
         return 1;
     }
 
@@ -923,8 +925,9 @@ _next_block(struct radix_node *node, int idx, int shift, int depth)
  * Parse triangle (k-bit subtree)
  */
 static void
-_parse_triangle(struct radix_node *node, u64 *vector, struct radix_node *nodes,
-                int pos, int depth)
+_prepare_node_vector (struct radix_node *node,
+                      u64 *vector, struct radix_node *nodes,
+                      int pos, int depth)
 {
     int i;
     int hlen;
@@ -944,7 +947,7 @@ _parse_triangle(struct radix_node *node, u64 *vector, struct radix_node *nodes,
 
     /* Left */
     if ( node->left ) {
-        _parse_triangle(node->left, vector, nodes, pos, depth + 1);
+        _prepare_node_vector (node->left, vector, nodes, pos, depth + 1);
     } else {
         for ( i = pos; i < pos + hlen; i++ ) {
             memcpy(&nodes[i], node, sizeof(struct radix_node));
@@ -954,7 +957,7 @@ _parse_triangle(struct radix_node *node, u64 *vector, struct radix_node *nodes,
     }
     /* Right */
     if ( node->right ) {
-        _parse_triangle(node->right, vector, nodes, pos + hlen, depth + 1);
+        _prepare_node_vector (node->right, vector, nodes, pos + hlen, depth + 1);
     } else {
         for ( i = pos + hlen; i < pos + hlen * 2; i++ ) {
             memcpy(&nodes[i], node, sizeof(struct radix_node));
