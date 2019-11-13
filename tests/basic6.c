@@ -221,7 +221,7 @@ test_lookup_linx(void)
     }
 
     for ( i = 0; i < 0x100000000ULL; i++ ) {
-        if ( 0 == i % 0x10000000ULL ) {
+        if ( 0 == (i & (0x10000000ULL - 1)) ) {
             TEST_PROGRESS();
         }
         addr1 = (((__uint128_t)0x2000) << 112) | (((__uint128_t)i) << 92);
