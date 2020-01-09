@@ -10,7 +10,7 @@ noinst_HEADERS = buddy.h
 AUTOMAKE_OPTIONS = subdir-objects
 bin_PROGRAMS = poptrie_test_basic poptrie_test_basic6
 lib_LTLIBRARIES = libpoptrie.la
-libpoptrie_la_SOURCES = poptrie.c poptrie4.c poptrie6.c poptrie.h buddy.c buddy.h poptrie_private.h
+libpoptrie_la_SOURCES = poptrie.c poptrie_fib.c poptrie4.c poptrie6.c poptrie.h buddy.c buddy.h poptrie_private.h
 
 poptrie_test_basic_SOURCES = tests/basic.c
 poptrie_test_basic_LDADD = libpoptrie.la

@@ -3,7 +3,10 @@
  * All rights reserved.
  */
 
+#include "poptrie_int.h"
 #include "buddy.h"
+#include "poptrie_rib.h"
+#include "poptrie_fib.h"
 #include "poptrie.h"
 #include <stdlib.h>
 #include <string.h>

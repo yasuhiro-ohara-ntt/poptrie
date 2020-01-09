@@ -3,6 +3,9 @@
  * All rights reserved.
  */
 
+#include "../poptrie_int.h"
+#include "../poptrie_fib.h"
+#include "../poptrie_rib.h"
 #include "../poptrie.h"
 #include <stdio.h>
 #include <stdlib.h>

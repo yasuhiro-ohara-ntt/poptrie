@@ -350,20 +350,12 @@ _update_inode_chunk_rec(struct poptrie *poptrie, struct radix_node *node,
     poptrie_leaf_t sleaf1;
 
     if ( 0 == r ) {
-        if ( NULL != leaf ) {
-            ret = _update_inode(poptrie, node, inode + pos, nodes + pos,
-                                &sleaf0);
-            if ( ret < 0 ) {
-                return -1;
-            }
-            if ( ret > 0 ) {
-                *leaf = sleaf0;
-            }
-        } else {
-            ret = _update_inode(poptrie, node, inode + pos, nodes + pos, NULL);
-            if ( ret < 0 ) {
-                return -1;
-            }
+        ret = _update_inode (poptrie, node, inode + pos, nodes + pos, &sleaf0);
+        if ( ret < 0 ) {
+            return -1;
+        }
+        if ( ret > 0 && leaf ) {
+            *leaf = sleaf0;
         }
         return ret;
     }
@@ -1140,63 +1132,6 @@ _update_clean_root(struct poptrie *poptrie, int nroot, int oroot)
     /* Clear */
     if ( oroot != nroot ) {
         buddy_free2(poptrie->cnodes, oroot);
-    }
-}
-
-/*
- * Insert an entry to the FIB mapping table
- */
-static int
-poptrie_fib_ref(struct poptrie *poptrie, void *nexthop)
-{
-    int i;
-    int n;
-
-    /* Find the FIB entry mapping first */
-    for ( i = 0; i < poptrie->fib.sz; i++ ) {
-        if ( poptrie->fib.entries[i].entry == nexthop ) {
-            /* Found the matched entry */
-            poptrie->fib.entries[i].refs++;
-            n = i;
-            break;
-        }
-    }
-    if ( i == poptrie->fib.sz ) {
-        /* No matching FIB entry was found, then find an available slot */
-        for ( i = 0; i < poptrie->fib.sz; i++ ) {
-            if ( poptrie->fib.entries[i].refs <= 0 ) {
-                /* Found */
-                n = i;
-                break;
-            }
-        }
-        if ( i == poptrie->fib.sz ) {
-            /* The FIB mapping table is full */
-            return -1;
-        }
-
-        /* Append new FIB entry */
-        poptrie->fib.entries[n].entry = nexthop;
-        poptrie->fib.entries[n].refs = 1;
-    }
-
-    return n;
-}
-
-/*
- * Dereference an entry from the FIB mapping table
- */
-static void
-poptrie_fib_deref(struct poptrie *poptrie, void *nexthop)
-{
-    int i;
-
-    for ( i = 0; i < poptrie->fib.sz; i++ ) {
-        if ( poptrie->fib.entries[i].entry == nexthop ) {
-            /* Found the matched entry */
-            poptrie->fib.entries[i].refs--;
-            break;
-        }
     }
 }
 

@@ -8,11 +8,6 @@
 
 #include <stdint.h>
 
-typedef uint8_t u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
-
 
 /* The bit length used for direct pointing.  The most significant POPTRIE_S bits
    of keys will be tested at the first stage of the trie search in O(1). */
@@ -40,42 +35,8 @@ typedef struct poptrie_node {
     u32 base1;
 } poptrie_node_t;
 
-/* Leaf node; 16-bit value */
-typedef u16 poptrie_leaf_t;
-
 /* FIB index */
 typedef u16 poptrie_fib_index_t;
-
-/*
- * Radix tree node
- */
-struct radix_node {
-    int valid;
-    struct radix_node *left;
-    struct radix_node *right;
-
-    /* Next hop */
-    int len;
-    poptrie_leaf_t nexthop;
-
-    /* Propagated route for invalid intermediate nodes from a valid parent */
-    struct radix_node *ext;
-
-    /* Mark for update */
-    int mark;
-};
-
-/*
- * FIB mapping table
- */
-struct poptrie_fib_entry {
-    void *entry;
-    int refs;
-};
-struct poptrie_fib {
-    struct poptrie_fib_entry *entries;
-    int sz;
-};
 
 /*
  * Poptrie management data structure

@@ -3,7 +3,10 @@
  * All rights reserved.
  */
 
+#include "poptrie_int.h"
 #include "buddy.h"
+#include "poptrie_rib.h"
+#include "poptrie_fib.h"
 #include "poptrie.h"
 #include "poptrie_private.h"
 #include <stdlib.h>
@@ -62,13 +65,13 @@ poptrie6_route_add(struct poptrie *poptrie, __uint128_t prefix, int len,
     int n;
 
     /* Find the FIB entry mapping first */
-    n = poptrie_fib_ref(poptrie, nexthop);
+    n = poptrie_fib_ref(&poptrie->fib, nexthop);
 
     /* Insert the prefix to the radix tree, then incrementally update the
        poptrie data structure */
     ret = _route_add(poptrie, &poptrie->radix, prefix, len, n, 0, NULL);
     if ( ret < 0 ) {
-        poptrie_fib_deref(poptrie, nexthop);
+        poptrie_fib_deref(&poptrie->fib, nexthop);
         return ret;
     }
 
@@ -86,7 +89,7 @@ poptrie6_route_change(struct poptrie *poptrie, __uint128_t prefix, int len,
     int ret;
 
     /* Find the FIB entry mapping first */
-    n = poptrie_fib_ref(poptrie, nexthop);
+    n = poptrie_fib_ref(&poptrie->fib, nexthop);
 
     /* Try to route change */
     ret = _route_change(poptrie, &poptrie->radix, prefix, len, n, 0);
@@ -105,7 +108,7 @@ poptrie6_route_update(struct poptrie *poptrie, __uint128_t prefix, int len,
     int n;
 
     /* Find the FIB entry mapping first */
-    n = poptrie_fib_ref(poptrie, nexthop);
+    n = poptrie_fib_ref(&poptrie->fib, nexthop);
 
     /* Insert to the radix tree */
     ret = _route_update(poptrie, &poptrie->radix, prefix, len, n, 0, NULL);
